@@ -263,7 +263,7 @@ dialog::backdrop{background:rgba(51,33,31,.55)}
 .check{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:15.5px}
 .check input{width:21px;height:21px;margin-top:3px;accent-color:var(--berry);flex:none}
 .dlg .btn{width:100%;margin-top:20px}
-.demo{margin-top:14px;font-size:13.5px;color:var(--ink-soft);background:var(--tile);border-radius:12px;padding:8px 12px;line-height:1.55}
+.demo{margin-top:14px;font-size:14.5px;color:var(--ink-soft);background:var(--tile);border-radius:12px;padding:8px 12px;line-height:1.55}
 [hidden]{display:none!important}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.lights{animation:none}.btn{transition:none}}
 </style>
@@ -576,7 +576,7 @@ dialog::backdrop{background:rgba(51,33,31,.55)}
 const CONFIG = {
   phone: '010-5953-7843',
   // 카카오톡 채널 채팅 주소(예: https://pf.kakao.com/_abcde/chat) 또는 오픈채팅 주소. 비워 두면 안내만 표시됩니다.
-  kakaoChatUrl: '',
+  kakaoChatUrl: 'https://open.kakao.com/o/sJW02AQi',
   naverPlaceUrl: 'https://map.naver.com/p/entry/place/2088460719',
   address: '인천 부평구 열우물로 73 4층',
   way: '동암역 2번 출구에서 545m',
@@ -764,20 +764,28 @@ let msgEdited = false;
 $('#cMsg').addEventListener('input', () => { msgEdited = true; });
 $$('[data-chat]').forEach(b => b.addEventListener('click', () => {
   if (state.member){ if (!$('#cDog').value) $('#cDog').value = state.member.dog; if (!$('#cBreed').value) $('#cBreed').value = [state.member.breed, state.member.kg && state.member.kg + 'kg'].filter(Boolean).join(' '); }
-  msgEdited = false; $('#cMsg').value = buildMsg(); $('#chatErr').textContent = ''; $('#chatDemo').hidden = true; chatDlg.showModal();
+  msgEdited = false; $('#cMsg').value = buildMsg(); $('#chatErr').textContent = ''; $('#chatDemo').hidden = true; $('#chatForm button[type=submit]').textContent = '문의 글 복사하고 카카오톡 열기'; chatDlg.showModal();
 }));
 $('#chatForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const msg = $('#cMsg').value.trim();
+  const box = $('#cMsg'), msg = box.value.trim(), note = $('#chatDemo');
   if (!msg){ $('#chatErr').textContent = '보낼 문의 글이 비어 있어요. 내용을 적어 주세요.'; return; }
-  const ok = await copy(msg);
+  $('#chatErr').textContent = '';
+  // 누른 즉시 복사(동기) → 바로 카카오톡 열기. 팝업 차단에 걸리지 않게 순서를 지킵니다.
+  let ok = false;
+  try { box.focus(); box.select(); ok = document.execCommand('copy'); } catch (_) {}
+  if (!ok) ok = await copy(msg);
+  const smsHref = 'sms:' + CONFIG.phone.replace(/[^0-9]/g, '') + '?&body=' + encodeURIComponent(msg);
   if (CONFIG.kakaoChatUrl){
     window.open(CONFIG.kakaoChatUrl, '_blank', 'noopener');
-    $('#chatDemo').textContent = ok ? '문의 글을 복사했어요. 열린 카카오톡 상담창에 붙여 넣고 보내 주세요.' : '카카오톡 상담창을 열었어요. 위 문의 글을 길게 눌러 복사한 뒤 붙여 넣어 주세요.';
+    note.innerHTML = (ok ? '<b>문의 글을 복사했어요.</b> 열린 카카오톡 채팅창에 붙여 넣고 보내 주세요.' : '위 문의 글을 길게 눌러 복사한 뒤, 열린 카카오톡 채팅창에 붙여 넣어 주세요.') +
+      ' 카카오톡이 열리지 않으면 <a href="' + CONFIG.kakaoChatUrl + '" target="_blank" rel="noopener">여기를 눌러 여세요</a>.';
   } else {
-    $('#chatDemo').innerHTML = (ok ? '문의 글을 복사했어요. ' : '') + '사장님 카카오톡 채널 주소를 연결하면 여기서 상담창이 바로 열립니다. 지금은 <a href="sms:' + CONFIG.phone.replace(/[^0-9]/g, '') + '?&body=' + encodeURIComponent(msg) + '">문자로 보내기</a> 또는 <a href="' + telHref + '">전화(' + CONFIG.phone + ')</a>로 예약해 주세요.';
+    note.innerHTML = (ok ? '문의 글을 복사했어요. ' : '') + '지금은 <a href="' + smsHref + '">문자로 보내기</a> 또는 <a href="' + telHref + '">전화(' + CONFIG.phone + ')</a>로 예약해 주세요.';
   }
-  $('#chatDemo').hidden = false;
+  note.hidden = false;
+  e.submitter && (e.submitter.textContent = ok ? '복사했어요 · 카카오톡 다시 열기' : '카카오톡 다시 열기');
+  note.scrollIntoView({ block: 'nearest' });
 });
 
 /* ── 카카오 회원가입(동작 예시) ── */
